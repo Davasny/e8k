@@ -5,7 +5,7 @@ import { join } from "path";
 import { gunzip } from "zlib";
 
 /**
- * query: 0.domain.ltd - new session request
+ * query: <filename>.s.domain.ltd - start session request
  * response: 1.0.0.x - session number
  * */
 
@@ -20,7 +20,12 @@ import { gunzip } from "zlib";
  * */
 
 type transferredStrings = string[];
-const sessions = new Map<number, transferredStrings>();
+interface TransferSession {
+  strings: transferredStrings;
+  fileName: string;
+  timeStarted: Date;
+}
+const sessions = new Map<number, TransferSession>();
 
 const downloadsDir = join(__dirname, "remoteFiles");
 if (!existsSync(downloadsDir)) {
@@ -30,31 +35,48 @@ if (!existsSync(downloadsDir)) {
 const server = createServer({
   udp: true,
   handle: (request, send, rinfo) => {
-    console.log(`Received DNS request from ${rinfo.address}`);
-
     const response = Packet.createResponseFromRequest(request);
     const [question] = request.questions;
     const { name } = question;
 
-    console.log(`Querying for name: ${name}`);
-
     const labels = name.split(".");
 
     let responseIp = "1.1.1.1";
-    if (labels.length === 3 && labels[0] === "0") {
-      console.log("New session request");
+    if (labels.length === 4 && labels[1] === "s") {
       const existingSessions = Array.from(sessions.keys());
       const sessionNumber = Math.max(...existingSessions, 0) + 1;
+
+      const filename = labels[0].replace(/(_)(?!.*\1)/, ".");
+
+      sessions.set(sessionNumber, {
+        strings: [],
+        fileName: filename,
+        timeStarted: new Date(),
+      });
+      console.log(`[${sessionNumber}] New session request, file: ${filename}`);
+
       responseIp = `1.0.0.${sessionNumber}`;
-      sessions.set(sessionNumber, []);
+    }
+
+    if (labels.length === 5 && labels[0] !== "") {
+      const sessionNumber = Number(labels[2]);
+
+      const chunkNumber = Number(labels[1]);
+
+      console.log(`[${sessionNumber}] Data chunk received: ${chunkNumber}`);
+      if (sessions.has(sessionNumber)) {
+        const session = sessions.get(sessionNumber);
+        session.strings[chunkNumber] = labels[0];
+      }
     }
 
     if (labels.length === 4 && labels[0] === "1") {
-      console.log("Finish session request");
       const sessionNumber = Number(labels[1]);
+      console.log(`[${sessionNumber}] Finish session request`);
+
       if (sessions.has(sessionNumber)) {
         const session = sessions.get(sessionNumber);
-        const hexData = session.join("");
+        const hexData = session.strings.join("");
 
         const buffer = Buffer.from(hexData, "hex");
 
@@ -69,13 +91,21 @@ const server = createServer({
           // Construct the file path within the downloads directory
           const filePath = join(
             downloadsDir,
-            `session-${sessionNumber}-${date.toISOString()}.txt`,
+            `session-${sessionNumber}-${date.toISOString()}-${
+              session.fileName
+            }`,
           );
 
           // Write the decompressed data to file
           writeFileSync(filePath, decompressed);
+
+          const timeTaken = date.getTime() - session.timeStarted.getTime();
+
           console.log(
-            `Session ${sessionNumber} data written to file: ${filePath}`,
+            `Session ${sessionNumber} data written to file: ${filePath}, `,
+            `time taken: ${timeTaken}ms, `,
+            `file size: ${decompressed.length} bytes, `,
+            `speed (kb/s): ${((decompressed.length / timeTaken) * 1000 / 1024).toFixed(2)}`,
           );
         });
 
@@ -83,18 +113,6 @@ const server = createServer({
         responseIp = "1.0.0.1";
       } else {
         // handle incorrect session number, probably do nothing
-      }
-    }
-
-    if (labels.length === 5 && labels[0] !== "") {
-      console.log("Data chunk received");
-
-      const sessionNumber = Number(labels[2]);
-      const chunkNumber = Number(labels[1]);
-
-      if (sessions.has(sessionNumber)) {
-        const session = sessions.get(sessionNumber);
-        session[chunkNumber] = labels[0];
       }
     }
 
