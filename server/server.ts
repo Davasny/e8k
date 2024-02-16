@@ -58,15 +58,30 @@ const server = createServer({
       responseIp = `1.0.0.${sessionNumber}`;
     }
 
-    if (labels.length === 5 && labels[0] !== "") {
-      const sessionNumber = Number(labels[2]);
+    if (labels.length >= 5 && labels[0] !== "") {
+      const sessionNumber = Number(labels[4]);
+      const chunkNumber = Number(labels[3])*3; // 3 chunks per request
 
-      const chunkNumber = Number(labels[1]);
+      const chunk1 = labels[0];
+      const chunk2 = labels[1];
+      const chunk3 = labels[2];
 
-      console.log(`[${sessionNumber}] Data chunk received: ${chunkNumber}`);
+      console.log(`[${sessionNumber}] Data chunk received: ${chunkNumber/3}`);
+
       if (sessions.has(sessionNumber)) {
         const session = sessions.get(sessionNumber);
-        session.strings[chunkNumber] = labels[0];
+
+        if (chunk1 !== "_") {
+          session.strings[chunkNumber] = chunk1;
+        }
+
+        if (chunk2 !== "_") {
+          session.strings[chunkNumber + 1] = chunk2;
+        }
+
+        if (chunk3 !== "_") {
+          session.strings[chunkNumber + 2] = chunk3;
+        }
       }
     }
 
@@ -105,7 +120,10 @@ const server = createServer({
             `Session ${sessionNumber} data written to file: ${filePath},`,
             `time taken: ${timeTaken}ms,`,
             `file size: ${decompressed.length} bytes,`,
-            `speed (kb/s): ${((decompressed.length / timeTaken) * 1000 / 1024).toFixed(2)}`,
+            `speed (kb/s): ${(
+              ((decompressed.length / timeTaken) * 1000) /
+              1024
+            ).toFixed(2)}`,
           );
         });
 
@@ -129,8 +147,8 @@ const server = createServer({
 });
 
 server.on("listening", () => {
-  console.log("DNS server listening on port 1053")
-  console.log(`Saving files to: ${downloadsDir}`)
+  console.log("DNS server listening on port 1053");
+  console.log(`Saving files to: ${downloadsDir}`);
 });
 
 server.listen({
