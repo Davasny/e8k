@@ -34,7 +34,7 @@ if (!existsSync(downloadsDir)) {
 
 const server = createServer({
   udp: true,
-  handle: (request, send, rinfo) => {
+  handle: (request, send) => {
     const response = Packet.createResponseFromRequest(request);
     const [question] = request.questions;
     const { name } = question;
@@ -102,9 +102,9 @@ const server = createServer({
           const timeTaken = date.getTime() - session.timeStarted.getTime();
 
           console.log(
-            `Session ${sessionNumber} data written to file: ${filePath}, `,
-            `time taken: ${timeTaken}ms, `,
-            `file size: ${decompressed.length} bytes, `,
+            `Session ${sessionNumber} data written to file: ${filePath},`,
+            `time taken: ${timeTaken}ms,`,
+            `file size: ${decompressed.length} bytes,`,
             `speed (kb/s): ${((decompressed.length / timeTaken) * 1000 / 1024).toFixed(2)}`,
           );
         });
@@ -128,7 +128,10 @@ const server = createServer({
   },
 });
 
-server.on("listening", () => console.log("DNS server listening on port 1053"));
+server.on("listening", () => {
+  console.log("DNS server listening on port 1053")
+  console.log(`Saving files to: ${downloadsDir}`)
+});
 
 server.listen({
   udp: 1053,
