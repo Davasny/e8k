@@ -10,6 +10,8 @@ d = f'{int(str(c)[0]) + int(a[0], 16):x}'
 f'{d}{str(c)[1]}{a[-1]}'
 ```
 
+![diagram](./docs/DNS_exfiltration.drawio.png)
+
 ## Usage
 
 ### Server
