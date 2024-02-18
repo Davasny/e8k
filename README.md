@@ -29,18 +29,32 @@ cd client
 
 ## Benchmarks
 
+### Bash client
 ```bash
 # client:
+cd client
 ./client.sh test-data/kitty.webp
 
-# server:
+# bash client, single chunk per query:
 # time taken: 9582ms, file size: 291844 bytes, speed (kb/s): 29.74
+
+# bash client, 3 chunks per query:
+# time taken: 14734ms, file size: 291844 bytes, speed (kb/s): 19.34
+```
+
+### Golang client
+```bash
+cd client-go
+go run main.go ../client/test-data/kitty.webp 
+
+# time taken: 1791ms, file size: 291844 bytes, speed (kb/s): 159.13
 ```
 
 ### Todo:
 
-- [ ] golang client
-- [ ] transfer multiple chunks in single query (3 x 63 chars)
+- [ ] implement async go client
 - [ ] limit sessions to 255 (limit of single ip octet) or use multiple octets as workaround
+- [x] golang client
+- [x] transfer multiple chunks in single query (3 x 63 chars)
 - [x] filename in start session
 - [x] speed measurement
